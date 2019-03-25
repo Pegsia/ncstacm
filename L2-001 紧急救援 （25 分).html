@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>L2-001 紧急救援 （25 分)</title>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="created" content="2019-03-25T12:29:52+0800"/>
+        <meta name="modified" content="2019-03-25T12:31:03+0800"/>
+        <meta name="tags" content="CCCC"/>
+        <meta name="last device" content="MacBook-Pro"/>
+    </head>
+    <body>
+        <div class="note-wrapper">
+            <h1>L2-001 紧急救援 （25 分)</h1>
+<p><span class='hashtag'>#CCCC</span></p>
+<br>
+<p><a href="https://pintia.cn/problem-sets/994805046380707840/problems/994805073643683840">https://pintia.cn/problem-sets/994805046380707840/problems/994805073643683840</a></p>
+<br>
+<p>最短路</p>
+<br>
+<p>因为还要求最短路径的个数和最大救援人数</p>
+<br>
+<p>对于每个节点和每个节点的前一个节点，理想的方法是和蓝桥杯第五题一样，结构体里增加三个记录信息，这道题就是要增加一个最短路径的个数和当前最大救援队数的信息和每个节点的前一个节点。</p>
+<br>
+<p>但我们存图的方式不是存点，而是存边，所以只能额外开一个数组tot[]，记录起始点到每个点的最短路径的个数；再开一个数组sum[]，记录每个点当前最大救援队数；再开一个pre[]记录每个节点的前一个节点。</p>
+<br>
+<br>
+<pre><code class='code-multiline' lang='c'><span class="sf_code_macro">#include </span><span class="sf_code_string">&lt;iostream&gt;</span>
+<span class="sf_code_macro">#include </span><span class="sf_code_string">&lt;queue&gt;</span>
+<span class="sf_code_macro">#include </span><span class="sf_code_string">&lt;cstring&gt;</span>
+<span class="sf_code_macro">#include </span><span class="sf_code_string">&lt;stack&gt;</span>
+<span class="sf_code_macro">#include </span><span class="sf_code_string">&lt;algorithm&gt;</span>
+using namespace std<span class="sf_code_punctuation">;</span>
+
+<span class="sf_code_constant">const</span> <span class="sf_code_keyword">int</span> maxn <span class="sf_code_operator">=</span> <span class="sf_code_number">505</span><span class="sf_code_punctuation">;</span>
+<span class="sf_code_keyword">int</span> N<span class="sf_code_punctuation">,</span> M<span class="sf_code_punctuation">,</span> s<span class="sf_code_punctuation">,</span> e<span class="sf_code_punctuation">;</span>
+
+<span class="sf_code_comment">// nums：每个点人数，d：每个点到原点距离</span>
+<span class="sf_code_keyword">int</span> nums<span class="sf_code_punctuation">[</span>maxn<span class="sf_code_punctuation">],</span> dist<span class="sf_code_punctuation">[</span>maxn<span class="sf_code_punctuation">];</span>
+<span class="sf_code_comment">// tot:起点到点i最短路的条数， sum:起点到点i人数</span>
+<span class="sf_code_keyword">int</span> tot<span class="sf_code_punctuation">[</span>maxn<span class="sf_code_punctuation">],</span> sum<span class="sf_code_punctuation">[</span>maxn<span class="sf_code_punctuation">];</span>
+<span class="sf_code_keyword">int</span> pre<span class="sf_code_punctuation">[</span>maxn<span class="sf_code_punctuation">];</span>
+bool vis<span class="sf_code_punctuation">[</span>maxn<span class="sf_code_punctuation">];</span>
+vector<span class="sf_code_operator">&lt;</span>pair<span class="sf_code_operator">&lt;</span><span class="sf_code_keyword">int</span><span class="sf_code_punctuation">,</span> <span class="sf_code_keyword">int</span><span class="sf_code_operator">&gt;</span> <span class="sf_code_operator">&gt;</span> E<span class="sf_code_punctuation">[</span>maxn<span class="sf_code_punctuation">];</span>
+
+<span class="sf_code_keyword">void</span> <span class="sf_code_function">dijkstra</span><span class="sf_code_punctuation">()</span>
+<span class="sf_code_punctuation">{</span>
+    priority_queue<span class="sf_code_operator">&lt;</span>pair<span class="sf_code_operator">&lt;</span><span class="sf_code_keyword">int</span><span class="sf_code_punctuation">,</span> <span class="sf_code_keyword">int</span><span class="sf_code_operator">&gt;</span> <span class="sf_code_operator">&gt;</span> Q<span class="sf_code_punctuation">;</span> <span class="sf_code_comment">// Q.top().first = Q.top()的点到远点的距离（的相反数），Q.top().second是Q.top()的编号</span>
+	<span class="sf_code_comment">// 因为pair优先按第一纬排序，所以pair.first需要是dist</span>
+
+	<span class="sf_code_comment">//初始化</span>
+    dist<span class="sf_code_punctuation">[</span>s<span class="sf_code_punctuation">]</span> <span class="sf_code_operator">=</span> <span class="sf_code_number">0</span><span class="sf_code_punctuation">;</span>
+    Q<span class="sf_code_punctuation">.</span><span class="sf_code_function">push</span><span class="sf_code_punctuation">({</span><span class="sf_code_operator">-</span>dist<span class="sf_code_punctuation">[</span>s<span class="sf_code_punctuation">],</span> s<span class="sf_code_punctuation">});</span>
+
+	<span class="sf_code_comment">// 松弛</span>
+    <span class="sf_code_keyword">while</span> <span class="sf_code_punctuation">(</span><span class="sf_code_operator">!</span>Q<span class="sf_code_punctuation">.</span><span class="sf_code_function">empty</span><span class="sf_code_punctuation">())</span>
+    <span class="sf_code_punctuation">{</span>
+		<span class="sf_code_comment">// head永远是当前与远点最近的点，每次循环用head来松弛其他点。</span>
+		<span class="sf_code_comment">// 每一次用head松弛  与head相连的所有出点</span>
+
+        <span class="sf_code_keyword">int</span> head <span class="sf_code_operator">=</span> Q<span class="sf_code_punctuation">.</span><span class="sf_code_function">top</span><span class="sf_code_punctuation">().</span>second<span class="sf_code_punctuation">;</span><span class="sf_code_comment">// head：当前dist最短的点（距离起始点最近）的点的编号</span>
+        Q<span class="sf_code_punctuation">.</span><span class="sf_code_function">pop</span><span class="sf_code_punctuation">();</span>
+		<span class="sf_code_keyword">if</span> <span class="sf_code_punctuation">(</span>vis<span class="sf_code_punctuation">[</span>head<span class="sf_code_punctuation">])</span> <span class="sf_code_keyword">continue</span><span class="sf_code_punctuation">;</span>
+		vis<span class="sf_code_punctuation">[</span>head<span class="sf_code_punctuation">]</span> <span class="sf_code_operator">=</span> <span class="sf_code_number">1</span><span class="sf_code_punctuation">;</span>
+        <span class="sf_code_keyword">for</span> <span class="sf_code_punctuation">(</span><span class="sf_code_keyword">int</span> i <span class="sf_code_operator">=</span> <span class="sf_code_number">0</span><span class="sf_code_punctuation">;</span> i <span class="sf_code_operator">&lt;</span> E<span class="sf_code_punctuation">[</span>head<span class="sf_code_punctuation">].</span><span class="sf_code_function">size</span><span class="sf_code_punctuation">();</span> i <span class="sf_code_operator">++</span> <span class="sf_code_punctuation">)</span>
+        <span class="sf_code_punctuation">{</span>
+            <span class="sf_code_keyword">int</span> v <span class="sf_code_operator">=</span> E<span class="sf_code_punctuation">[</span>head<span class="sf_code_punctuation">][</span>i<span class="sf_code_punctuation">].</span>first<span class="sf_code_punctuation">;</span>  <span class="sf_code_comment">// 与head相连的边的编号</span>
+            <span class="sf_code_keyword">int</span> curdist <span class="sf_code_operator">=</span> E<span class="sf_code_punctuation">[</span>head<span class="sf_code_punctuation">][</span>i<span class="sf_code_punctuation">].</span>second<span class="sf_code_punctuation">;</span>  <span class="sf_code_comment">// 与head相连的边的距起始点的距离</span>
+
+			<span class="sf_code_comment">// 因为head与v相连，所以可以用head   松弛v的dist</span>
+
+			<span class="sf_code_comment">//  与普通最短路的题目不同的是，普通的最短路不需要考虑这种松弛时距离相等的情况</span>
+			<span class="sf_code_comment">//  松弛时距离相等：更新可以到达的路径个数，和最大救援数</span>
+			<span class="sf_code_comment">//  因为没有更新dist，所以不需要再入队</span>
+            <span class="sf_code_keyword">if</span> <span class="sf_code_punctuation">(</span>dist<span class="sf_code_punctuation">[</span>v<span class="sf_code_punctuation">]</span> <span class="sf_code_operator">==</span> dist<span class="sf_code_punctuation">[</span>head<span class="sf_code_punctuation">]</span> <span class="sf_code_operator">+</span> curdist<span class="sf_code_punctuation">)</span>
+            <span class="sf_code_punctuation">{</span>
+                tot<span class="sf_code_punctuation">[</span>v<span class="sf_code_punctuation">]</span> <span class="sf_code_operator">+=</span> tot<span class="sf_code_punctuation">[</span>head<span class="sf_code_punctuation">];</span>
+                sum<span class="sf_code_punctuation">[</span>v<span class="sf_code_punctuation">]</span> <span class="sf_code_operator">=</span> <span class="sf_code_function">max</span><span class="sf_code_punctuation">(</span>sum<span class="sf_code_punctuation">[</span>v<span class="sf_code_punctuation">],</span> sum<span class="sf_code_punctuation">[</span>head<span class="sf_code_punctuation">]</span> <span class="sf_code_operator">+</span> nums<span class="sf_code_punctuation">[</span>v<span class="sf_code_punctuation">]);</span>
+				pre<span class="sf_code_punctuation">[</span>v<span class="sf_code_punctuation">]</span> <span class="sf_code_operator">=</span> head<span class="sf_code_punctuation">;</span>
+            <span class="sf_code_punctuation">}</span>
+
+			<span class="sf_code_comment">//  可以松弛：更新距离，更新可以到达的路径个数，更新最大救援数</span>
+            <span class="sf_code_keyword">if</span> <span class="sf_code_punctuation">(</span>dist<span class="sf_code_punctuation">[</span>v<span class="sf_code_punctuation">]</span> <span class="sf_code_operator">&gt;</span> dist<span class="sf_code_punctuation">[</span>head<span class="sf_code_punctuation">]</span> <span class="sf_code_operator">+</span> curdist<span class="sf_code_punctuation">)</span>
+            <span class="sf_code_punctuation">{</span>
+                dist<span class="sf_code_punctuation">[</span>v<span class="sf_code_punctuation">]</span> <span class="sf_code_operator">=</span> dist<span class="sf_code_punctuation">[</span>head<span class="sf_code_punctuation">]</span> <span class="sf_code_operator">+</span> curdist<span class="sf_code_punctuation">;</span>
+                tot<span class="sf_code_punctuation">[</span>v<span class="sf_code_punctuation">]</span> <span class="sf_code_operator">=</span> tot<span class="sf_code_punctuation">[</span>head<span class="sf_code_punctuation">];</span>
+                sum<span class="sf_code_punctuation">[</span>v<span class="sf_code_punctuation">]</span> <span class="sf_code_operator">=</span> sum<span class="sf_code_punctuation">[</span>head<span class="sf_code_punctuation">]</span> <span class="sf_code_operator">+</span> nums<span class="sf_code_punctuation">[</span>v<span class="sf_code_punctuation">];</span>
+				pre<span class="sf_code_punctuation">[</span>v<span class="sf_code_punctuation">]</span> <span class="sf_code_operator">=</span> head<span class="sf_code_punctuation">;</span>
+                Q<span class="sf_code_punctuation">.</span><span class="sf_code_function">push</span><span class="sf_code_punctuation">({</span><span class="sf_code_operator">-</span>dist<span class="sf_code_punctuation">[</span>v<span class="sf_code_punctuation">],</span> v<span class="sf_code_punctuation">});</span>
+            <span class="sf_code_punctuation">}</span>
+        <span class="sf_code_punctuation">}</span>
+    <span class="sf_code_punctuation">}</span>
+<span class="sf_code_punctuation">}</span>
+
+<span class="sf_code_keyword">void</span> <span class="sf_code_function">output</span><span class="sf_code_punctuation">(</span><span class="sf_code_keyword">int</span> x<span class="sf_code_punctuation">)</span>
+<span class="sf_code_punctuation">{</span>
+	vector<span class="sf_code_operator">&lt;</span><span class="sf_code_keyword">int</span><span class="sf_code_operator">&gt;</span> path<span class="sf_code_punctuation">;</span>
+	<span class="sf_code_keyword">for</span> <span class="sf_code_punctuation">(;</span> x<span class="sf_code_operator">!=</span> <span class="sf_code_operator">-</span><span class="sf_code_number">1</span><span class="sf_code_punctuation">;</span> x <span class="sf_code_operator">=</span> pre<span class="sf_code_punctuation">[</span>x<span class="sf_code_punctuation">])</span>
+		path<span class="sf_code_punctuation">.</span><span class="sf_code_function">push_back</span><span class="sf_code_punctuation">(</span>x<span class="sf_code_punctuation">);</span>
+	<span class="sf_code_function">reverse</span><span class="sf_code_punctuation">(</span>path<span class="sf_code_punctuation">.</span><span class="sf_code_function">begin</span><span class="sf_code_punctuation">(),</span> path<span class="sf_code_punctuation">.</span><span class="sf_code_function">end</span><span class="sf_code_punctuation">());</span>
+	<span class="sf_code_keyword">int</span> n <span class="sf_code_operator">=</span> path<span class="sf_code_punctuation">.</span><span class="sf_code_function">size</span><span class="sf_code_punctuation">();</span>
+	<span class="sf_code_comment">// PAT的题最后一个空格一定不能加</span>
+	<span class="sf_code_comment">// 防止使用size()-1</span>
+	<span class="sf_code_keyword">for</span> <span class="sf_code_punctuation">(</span><span class="sf_code_keyword">int</span> i <span class="sf_code_operator">=</span> <span class="sf_code_number">0</span><span class="sf_code_punctuation">;</span> i <span class="sf_code_operator">&lt;</span> n<span class="sf_code_punctuation">;</span> i <span class="sf_code_operator">++</span><span class="sf_code_punctuation">)</span> cout <span class="sf_code_operator">&lt;&lt;</span> path<span class="sf_code_punctuation">[</span>i<span class="sf_code_punctuation">]</span> <span class="sf_code_operator">&lt;&lt;</span> <span class="sf_code_string">" \n"</span><span class="sf_code_punctuation">[</span>i<span class="sf_code_operator">==</span>n<span class="sf_code_operator">-</span><span class="sf_code_number">1</span><span class="sf_code_punctuation">];</span>
+<span class="sf_code_punctuation">}</span>
+
+<span class="sf_code_keyword">int</span> <span class="sf_code_function">main</span> <span class="sf_code_punctuation">()</span>
+<span class="sf_code_punctuation">{</span>
+    <span class="sf_code_function">memset</span><span class="sf_code_punctuation">(</span>dist<span class="sf_code_punctuation">,</span> <span class="sf_code_number">0x3f</span><span class="sf_code_punctuation">,</span> <span class="sf_code_keyword">sizeof</span> dist<span class="sf_code_punctuation">);</span>
+	  <span class="sf_code_function">memset</span><span class="sf_code_punctuation">(</span>pre<span class="sf_code_punctuation">,</span> <span class="sf_code_operator">-</span><span class="sf_code_number">1</span><span class="sf_code_punctuation">,</span> <span class="sf_code_keyword">sizeof</span> pre<span class="sf_code_punctuation">);</span>
+    cin <span class="sf_code_operator">&gt;&gt;</span> N <span class="sf_code_operator">&gt;&gt;</span> M <span class="sf_code_operator">&gt;&gt;</span> s <span class="sf_code_operator">&gt;&gt;</span> e<span class="sf_code_punctuation">;</span>
+    <span class="sf_code_keyword">for</span> <span class="sf_code_punctuation">(</span><span class="sf_code_keyword">int</span> i <span class="sf_code_operator">=</span> <span class="sf_code_number">0</span><span class="sf_code_punctuation">;</span> i <span class="sf_code_operator">&lt;</span> N<span class="sf_code_punctuation">;</span> i <span class="sf_code_operator">++</span> <span class="sf_code_punctuation">)</span> cin <span class="sf_code_operator">&gt;&gt;</span> nums<span class="sf_code_punctuation">[</span>i<span class="sf_code_punctuation">];</span>
+    <span class="sf_code_keyword">for</span> <span class="sf_code_punctuation">(</span><span class="sf_code_keyword">int</span> i <span class="sf_code_operator">=</span> <span class="sf_code_number">0</span><span class="sf_code_punctuation">;</span> i <span class="sf_code_operator">&lt;</span> M<span class="sf_code_punctuation">;</span> i <span class="sf_code_operator">++</span> <span class="sf_code_punctuation">)</span>
+    <span class="sf_code_punctuation">{</span>
+        <span class="sf_code_keyword">int</span> a<span class="sf_code_punctuation">,</span> b<span class="sf_code_punctuation">,</span> c<span class="sf_code_punctuation">;</span>
+        cin <span class="sf_code_operator">&gt;&gt;</span> a <span class="sf_code_operator">&gt;&gt;</span> b <span class="sf_code_operator">&gt;&gt;</span> c<span class="sf_code_punctuation">;</span>
+        E<span class="sf_code_punctuation">[</span>a<span class="sf_code_punctuation">].</span><span class="sf_code_function">push_back</span><span class="sf_code_punctuation">({</span>b<span class="sf_code_punctuation">,</span> c<span class="sf_code_punctuation">});</span>
+        E<span class="sf_code_punctuation">[</span>b<span class="sf_code_punctuation">].</span><span class="sf_code_function">push_back</span><span class="sf_code_punctuation">({</span>a<span class="sf_code_punctuation">,</span> c<span class="sf_code_punctuation">});</span>
+    <span class="sf_code_punctuation">}</span>
+    
+    tot<span class="sf_code_punctuation">[</span>s<span class="sf_code_punctuation">]</span> <span class="sf_code_operator">=</span> <span class="sf_code_number">1</span><span class="sf_code_punctuation">;</span>
+    sum<span class="sf_code_punctuation">[</span>s<span class="sf_code_punctuation">]</span> <span class="sf_code_operator">=</span> nums<span class="sf_code_punctuation">[</span>s<span class="sf_code_punctuation">];</span>
+    
+    <span class="sf_code_function">dijkstra</span><span class="sf_code_punctuation">();</span>
+
+    cout <span class="sf_code_operator">&lt;&lt;</span> tot<span class="sf_code_punctuation">[</span>e<span class="sf_code_punctuation">]</span> <span class="sf_code_operator">&lt;&lt;</span> <span class="sf_code_string">" "</span> <span class="sf_code_operator">&lt;&lt;</span> sum<span class="sf_code_punctuation">[</span>e<span class="sf_code_punctuation">]</span> <span class="sf_code_operator">&lt;&lt;</span> endl<span class="sf_code_punctuation">;</span>
+	  <span class="sf_code_function">output</span><span class="sf_code_punctuation">(</span>e<span class="sf_code_punctuation">);</span>
+    <span class="sf_code_keyword">return</span> <span class="sf_code_number">0</span><span class="sf_code_punctuation">;</span>
+<span class="sf_code_punctuation">}</span>
+</code></pre>
+        </div>
+        <script type="text/javascript">
+            (function() {
+
+    var doc_ols = document.getElementsByTagName("ol");
+
+    for ( i=0; i<doc_ols.length; i++) {
+
+        var ol_start = doc_ols[i].getAttribute("start") - 1;
+        doc_ols[i].setAttribute("style", "counter-reset:ol " + ol_start + ";");
+
+    }
+
+})();
+        </script>
+        <style>
+            html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td,article,aside,canvas,details,embed,figure,figcaption,footer,header,hgroup,menu,nav,output,ruby,section,summary,time,mark,audio,video{margin:0;padding:0;border:0;font:inherit;font-size:100%;vertical-align:baseline}html{line-height:1}ol,ul{list-style:none}table{border-collapse:collapse;border-spacing:0}caption,th,td{text-align:left;font-weight:normal;vertical-align:middle}q,blockquote{quotes:none}q:before,q:after,blockquote:before,blockquote:after{content:"";content:none}a img{border:none}article,aside,details,figcaption,figure,footer,header,hgroup,main,menu,nav,section,summary{display:block}*{-moz-box-sizing:border-box;-webkit-box-sizing:border-box;box-sizing:border-box}html{font-size:87.5%;line-height:1.57143em}html{font-size:14px;line-height:1.6em;-webkit-text-size-adjust:100%}body{background:#fcfcfc;color:#545454;text-rendering:optimizeLegibility;font-family:"AvenirNext-Regular"}a{color:#de4c4f;text-decoration:none}h1{font-family:"AvenirNext-Medium";color:#333;font-size:1.6em;line-height:1.3em;margin-bottom:.78571em}h2{font-family:"AvenirNext-Medium";color:#333;font-size:1.3em;line-height:1em;margin-bottom:.62857em}h3{font-family:"AvenirNext-Medium";color:#333;font-size:1.15em;line-height:1em;margin-bottom:.47143em}p{margin-bottom:1.57143em;hyphens:auto}hr{height:1px;border:0;background-color:#dedede;margin:-1px auto 1.57143em auto}ul,ol{margin-bottom:.31429em}ul ul,ul ol,ol ul,ol ol{margin-bottom:0px}ol li:before{content:counter(ol) ".";counter-increment:ol;color:#e06e73;text-align:right;display:inline-block;min-width:1em;margin-right:0.5em}b,strong{font-family:"AvenirNext-Bold"}i,em{font-family:"AvenirNext-Italic"}code{font-family:"Menlo-Regular"}.text-overflow-ellipsis{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sf_code_string,.sf_code_selector,.sf_code_attr-name,.sf_code_char,.sf_code_builtin,.sf_code_inserted{color:#D33905}.sf_code_comment,.sf_code_prolog,.sf_code_doctype,.sf_code_cdata{color:#838383}.sf_code_number,.sf_code_boolean{color:#0E73A2}.sf_code_keyword,.sf_code_atrule,.sf_code_rule,.sf_code_attr-value,.sf_code_function,.sf_code_class-name,.sf_code_class,.sf_code_regex,.sf_code_important,.sf_code_variable,.sf_code_interpolation{color:#0E73A2}.sf_code_property,.sf_code_tag,.sf_code_constant,.sf_code_symbol,.sf_code_deleted{color:#1B00CE}.sf_code_macro,.sf_code_entity,.sf_code_operator,.sf_code_url{color:#920448}.note-wrapper{max-width:46em;margin:0px auto;padding:1.57143em 3.14286em}.note-wrapper.spotlight-preview{overflow-x:hidden}u{text-decoration:none;background-image:linear-gradient(to bottom, rgba(0,0,0,0) 50%,#e06e73 50%);background-repeat:repeat-x;background-size:2px 2px;background-position:0 1.05em}s{color:#878787}p{margin-bottom:0.1em}hr{margin-bottom:0.7em;margin-top:0.7em}ul li{text-indent:-0.35em}ul li:before{content:"•";color:#e06e73;display:inline-block;margin-right:0.3em}ul ul{margin-left:1.25714em}ol li{text-indent:-1.45em}ol ol{margin-left:1.25714em}blockquote{display:block;margin-left:-1em;padding-left:0.8em;border-left:0.2em solid #e06e73}.todo-list ul{margin-left:1.88571em}.todo-list li{text-indent:-1.75em}.todo-list li:before{content:"";display:static;margin-right:0px}.todo-checkbox{text-indent:-1.7em}.todo-checkbox svg{margin-right:0.3em;position:relative;top:0.2em}.todo-checkbox svg #check{display:none}.todo-checkbox.todo-checked #check{display:inline}.todo-checkbox.todo-checked .todo-text{text-decoration:line-through;color:#878787}.code-inline{display:inline;background:white;border:solid 1px #dedede;padding:0.2em 0.5em;font-size:0.9em}.code-multiline{display:block;background:white;border:solid 1px #dedede;padding:0.7em 1em;font-size:0.9em;overflow-x:auto}.hashtag{display:inline-block;color:white;background:#b8bfc2;padding:0.0em 0.5em;border-radius:1em;text-indent:0}.hashtag a{color:#fff}.address a{color:#545454;background-image:linear-gradient(to bottom, rgba(0,0,0,0) 50%,#0da35e 50%);background-repeat:repeat-x;background-size:2px 2px;background-position:0 1.05em}.address svg{position:relative;top:0.2em;display:inline-block;margin-right:0.2em}.color-preview{display:inline-block;width:1em;height:1em;border:solid 1px rgba(0,0,0,0.3);border-radius:50%;margin-right:0.1em;position:relative;top:0.2em;white-space:nowrap}.color-code{margin-right:0.2em;font-family:"Menlo-Regular";font-size:0.9em}.color-hash{opacity:0.4}.ordered-list-number{color:#e06e73;text-align:right;display:inline-block;min-width:1em}.arrow svg{position:relative;top:0.08em;display:inline-block;margin-right:0.15em;margin-left:0.15em}.arrow svg #rod{stroke:#545454}.arrow svg #point{fill:#545454}mark{color:inherit;display:inline;padding:0.2em 0.5em;background-color:#fcffc0}img{max-width:100%;height:auto}
+
+        </style>
+    </body>
+</html>
